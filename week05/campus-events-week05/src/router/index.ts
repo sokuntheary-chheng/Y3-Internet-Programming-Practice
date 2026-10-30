@@ -10,21 +10,45 @@ declare module "vue-router" {
 
 export const routes = [
   { path: "/", name: "events", component: EventsPage },
-  // TODO A1: add these routes. Lazy-load each page: component: () => import("../pages/....vue")
-  //   /events/new    name "event-new"     NewEventPage      meta: { organiserOnly: true }
-  //   /events/:id    name "event-detail"  EventDetailPage   props: true, and only digits: ":id(\\d+)"
-  //   /my-bookings   name "my-bookings"   MyBookingsPage
-  //   anything else  name "not-found"     NotFoundPage      path: "/:pathMatch(.*)*"
-  // Question: why must "/events/new" come before "/events/:id" if :id had no (\\d+)?
+  // "/events/new" must come before "/events/:id": the router matches top-down,
+  // so without the (\\d+) on :id the literal path "new" would be swallowed
+  // by the dynamic segment and never reach this route.
+  {
+    path: "/events/new",
+    name: "event-new",
+    component: () => import("../pages/NewEventPage.vue"),
+    meta: { organiserOnly: true },
+  },
+  {
+    path: "/events/:id(\\d+)",
+    name: "event-detail",
+    component: () => import("../pages/EventDetailPage.vue"),
+    props: true,
+  },
+  {
+    path: "/my-bookings",
+    name: "my-bookings",
+    component: () => import("../pages/MyBookingsPage.vue"),
+  },
+  // Catch-all: always last, every unmatched path ends here.
+  {
+    path: "/:pathMatch(.*)*",
+    name: "not-found",
+    component: () => import("../pages/NotFoundPage.vue"),
+  },
 ];
 
 export function makeRouter(history: RouterHistory = createWebHistory()) {
   const router = createRouter({ history, routes });
 
-  // TODO A2: a global guard (router.beforeEach).
-  // If the route has meta.organiserOnly and the session is not an organiser,
-  // redirect to { name: "events", query: { denied: "1" } }.
-  void useSessionStore; // remove this line when you use the store
+  // Only create the session store when the route actually needs the check:
+  // organiser-only pages. (Also keeps the guard cheap for every other route.)
+  router.beforeEach((to) => {
+    if (to.meta.organiserOnly && !useSessionStore().isOrganiser) {
+      return { name: "events", query: { denied: "1" } };
+    }
+    return true;
+  });
 
   return router;
 }
