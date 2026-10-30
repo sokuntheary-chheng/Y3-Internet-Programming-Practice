@@ -21,7 +21,7 @@ export const useBookingsStore = defineStore("bookings", () => {
     }
   }
 
-  // TODO D1: book `input.seats` seats for `event`.
+  // D1: book `input.seats` seats for `event`.
   //   1. If input.seats is more than the seats left, throw new ApiError(409, "Not enough seats left.")
   //      without calling the API.
   //   2. POST the booking: bookingsApi.create({ eventId, name, email, seats, createdAt: now as ISO string })
@@ -30,8 +30,18 @@ export const useBookingsStore = defineStore("bookings", () => {
   //      add the booking at the start of `bookings`. Return the booking.
   // Question: what goes wrong if step 2 succeeds and step 3 fails? (We fix this properly in week 7.)
   async function book(event: CampusEvent, input: BookingInput): Promise<Booking> {
-    void [event, input, seatsLeft, ApiError, eventsApi];
-    throw new Error("TODO D1: book() is not implemented");
+    if (input.seats > seatsLeft(event)) throw new ApiError(409, "Not enough seats left.");
+    const booking = await bookingsApi.create({
+      eventId: event.id,
+      name: input.name,
+      email: input.email,
+      seats: input.seats,
+      createdAt: new Date().toISOString(),
+    });
+    const updated = await eventsApi.setBooked(event.id, event.booked + input.seats);
+    useEventsStore().replace(updated);
+    bookings.value.unshift(booking);
+    return booking;
   }
 
   async function cancel(booking: Booking) {
