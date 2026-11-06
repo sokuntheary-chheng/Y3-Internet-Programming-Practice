@@ -1,0 +1,11 @@
+# Week 6 — Explain it
+
+1. Idempotent means repeating a request leaves the resource in the same final state as making it once. The first `DELETE /events/2` removes the event; the second call returns 404, but the event is still gone — the retry changes nothing about the end state, the 404 only says it was already removed. So yes, DELETE stays idempotent: idempotency is about the resulting state, not about always getting the same status code.
+
+2. The browser blocks the response: CORS is enforced by the browser, which hides the answer from the Vue app's JavaScript unless the API sends `Access-Control-Allow-Origin` for `http://localhost:5173` (that is what `enableCors()` in `src/setup.ts` does). curl is not a browser — it performs no origin check and prints the response as-is. The server answers both requests the same way; only the browser decides whether the page may read it.
+
+3. Nest's IoC container creates it: `EventsModule` lists `EventsService` under `providers`, so during bootstrap Nest instantiates it once and keeps that instance. When `EventsController` is constructed, dependency injection passes that same instance into `constructor(private readonly events: EventsService)`. There is exactly one `EventsService` per application — shared with `BookingsService` through `EventsModule` — which is why bookings and events operate on the same in-memory list.
+
+4. `forbidNonWhitelisted: true` in `configureApp()` (`src/setup.ts`) refuses it: `booked` is not a property of `CreateEventDto`, so the ValidationPipe answers 400 with `property booked should not exist` before any service runs. Without that option, `whitelist: true` would silently strip `booked` — the client would get 201 believing it set the seat count while the field was quietly ignored. (And even if it slipped past, `create()` sets `booked: 0` itself: the server, not the client, decides.)
+
+5. Because `BookingsService` is the single place every caller flows through — HTTP controller, unit tests, or a future job — and it already holds the event data the seat rule needs. The controller is only an HTTP adapter (no rules, per the lecture), while the Vue form's check is just UX: anyone can skip the form with curl, so the server must reject overbooking itself with 409. Keeping the rule in the service avoids duplicating it in the controller and makes it impossible to bypass.
