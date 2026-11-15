@@ -9,7 +9,7 @@ import { ListEventsQuery } from './dto/list-events.query.js';
 // Every method is async because every call goes over the network to the database.
 @Injectable()
 export class EventsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   findAll(query: ListEventsQuery = {}): Promise<Event[]> {
     const search = query.search?.trim();
@@ -32,17 +32,23 @@ export class EventsService {
   }
 
   // TODO B1: insert a new event and return it (booked and description have defaults in the schema)
+  // create(dto: CreateEventDto): Promise<Event> {
+  //   throw new Error('TODO B1');
+  // }
+
   create(dto: CreateEventDto): Promise<Event> {
-    throw new Error('TODO B1');
+    return this.prisma.event.create({ data: dto });
   }
 
   // TODO B2: 404 if the event does not exist, otherwise update only the fields in dto
   async update(id: number, dto: UpdateEventDto): Promise<Event> {
-    throw new Error('TODO B2');
+    await this.findOne(id);
+    return this.prisma.event.update({ where: { id }, data: dto });
   }
 
   // TODO B3: 404 if the event does not exist, otherwise delete it
   async remove(id: number): Promise<void> {
-    throw new Error('TODO B3');
+    await this.findOne(id);
+    await this.prisma.event.delete({ where: { id } });
   }
 }
