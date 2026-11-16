@@ -1,114 +1,124 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Puong API (M2)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Backend of **Puong** — a family-tree app: users share trees, each tree holds
+persons, the persons are linked by relationships, and members write memories
+about them. The specification is [`docs/api-contract.md`](docs/api-contract.md);
+the design is [`docs/erd.md`](docs/erd.md). Data lives in **PostgreSQL** through
+**Prisma** (milestone M2 — week 7).
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Prerequisites
 
-## Description
+- Node.js 20+ and npm
+- Docker (for PostgreSQL) — or a local PostgreSQL 16/17 you manage yourself
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
+## 1. Start the database
 
 ```bash
-$ npm install
+docker compose up -d      # PostgreSQL 17 on localhost:5435, database "puong"
 ```
 
-## Compile and run the project
+No Docker? Create the database yourself and point `.env` at it:
+
+```sql
+CREATE DATABASE puong;
+```
+
+## 2. Configure
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+cp .env.example .env      # never commit .env; only .env.example is tracked
 ```
 
-## Run tests
+`DATABASE_URL` must point at your database. `.env` also holds `PORT` (3000) and
+`WEB_ORIGIN` (the Vue dev server, for CORS).
+
+## 3. Install, migrate, seed
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm install               # also runs prisma generate (postinstall)
+npm run db:migrate        # writes prisma/migrations/*_init/migration.sql and runs it
+npm run db:seed           # 3 users, 1 tree, 6 persons, 9 relationships, 3 memories
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Useful extras:
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run db:studio         # browse the data in the browser
+npm run db:reset          # drop, re-migrate and re-seed
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## 4. Run the API
 
-## Observability
+```bash
+npm run start:dev         # http://localhost:3000, restarts when you save
+# or
+npm run build && npm run start:prod
+```
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
+Everything in [`requests.http`](requests.http) can be sent with the VS Code
+REST Client extension.
 
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
+## Trying it (curl)
 
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
+```bash
+# log in as the seeded OWNER — the token is what every other call needs
+curl -s -X POST http://localhost:3000/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"theary@puong.kh","password":"theary-password"}'
+# → { "token": "…" }
 
-## Resources
+TOKEN=…  # from the response above
 
-Check out a few resources that may come in handy when working with NestJS:
+curl -s http://localhost:3000/trees -H "Authorization: Bearer $TOKEN"
+curl -s http://localhost:3000/trees/1/persons -H "Authorization: Bearer $TOKEN"
+curl -s http://localhost:3000/trees/1/relationships -H "Authorization: Bearer $TOKEN"
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observer](https://observer.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Seeded accounts (password after the dash):
 
-## Support
+| Email | Role in "The Chanthou Family" |
+| --- | --- |
+| `theary@puong.kh` | OWNER — `theary-password` |
+| `chanthou@puong.kh` | CONTRIBUTOR — `chanthou-password` |
+| `dara@puong.kh` | VIEWER — `dara-password` |
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## How it is put together
 
-## Stay in touch
+```text
+src/
+├── main.ts             # dotenv, ValidationPipe (whitelist + forbid), CORS
+├── app.module.ts       # wires the 6 feature modules + Prisma + Auth
+├── prisma/             # PrismaService: ONE PrismaClient for the whole app
+├── auth/               # register/login/token guard + role checks (access.ts)
+├── trees/              # /trees CRUD, /trees/:id/members
+├── members/            # PATCH/DELETE /members/:id
+├── persons/            # /trees/:id/persons, /persons/:id
+├── relationships/      # /trees/:id/relationships, /relationships/:id
+└── memories/           # /persons/:id/memories, /memories/:id
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Three rules the code keeps, from the contract:
 
-## License
+- **Status codes**: 404 when the row does not exist, 403 when the caller's role
+  is too low (`access.ts` compares `VIEWER < CONTRIBUTOR < OWNER`), 409 for
+  duplicate e-mails and duplicate links (unique indexes do the work).
+- **Server-owned fields** (`id`, `createdAt`, `ownerId`, `authorId`): never in a
+  DTO, so `forbidNonWhitelisted` answers 400 if a client sends them.
+- **Two writes in one `$transaction`**: creating a tree also writes the OWNER
+  membership (`trees.service.ts`); creating a relationship checks both persons
+  and inserts in one transaction (`relationships.service.ts`). Everything else
+  is a single statement, and `onDelete: Cascade` covers the rest.
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+## Tests and checks
+
+```bash
+npm run lint              # oxlint
+npm run build             # nest build — must be error-free
+npm test                  # vitest unit tests
+npm run test:e2e          # HTTP tests
+```
+
+## Never commit `.env`
+
+`.env` is in `.gitignore`. What IS committed: `.env.example`, `prisma/schema.prisma`
+and `prisma/migrations/` — every teammate and every server runs the same SQL.

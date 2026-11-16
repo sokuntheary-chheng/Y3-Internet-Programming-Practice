@@ -1,0 +1,15 @@
+# Starts PostgreSQL for development: docker compose up -d
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: puong
+      POSTGRES_PASSWORD: puong_dev_password
+      POSTGRES_DB: puong
+    ports:
+      - '5435:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

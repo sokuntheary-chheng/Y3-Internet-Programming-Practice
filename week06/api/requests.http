@@ -1,0 +1,217 @@
+### 1. Register a new user (201)
+POST http://localhost:3000/auth/register
+Content-Type: application/json
+
+{
+  "name": "Sok Sreypov",
+  "email": "sreypov@puong.kh",
+  "password": "sreypov-pass"
+}
+
+### 2. Register the same e-mail again (409)
+POST http://localhost:3000/auth/register
+Content-Type: application/json
+
+{
+  "name": "Duplicate",
+  "email": "sreypov@puong.kh",
+  "password": "sreypov-pass"
+}
+
+### 3. Invalid body: short name, bad e-mail, short password (400)
+POST http://localhost:3000/auth/register
+Content-Type: application/json
+
+{
+  "name": "X",
+  "email": "not-an-email",
+  "password": "short"
+}
+
+### 4. Log in as the seeded OWNER (200 { token })
+POST http://localhost:3000/auth/login
+Content-Type: application/json
+
+{
+  "email": "theary@puong.kh",
+  "password": "theary-password"
+}
+
+### 5. Wrong password (401)
+POST http://localhost:3000/auth/login
+Content-Type: application/json
+
+{
+  "email": "theary@puong.kh",
+  "password": "wrong-password"
+}
+
+### 6. /me without a token (401)
+GET http://localhost:3000/me
+
+### 7. /me with the token (200) — paste the token from step 4
+GET http://localhost:3000/me
+Authorization: Bearer {{token}}
+
+### 8. My trees (200)
+GET http://localhost:3000/trees
+Authorization: Bearer {{token}}
+
+### 9. Create a tree — I become OWNER (201, one transaction)
+POST http://localhost:3000/trees
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "The Sok Family",
+  "description": "A tree created from requests.http"
+}
+
+### 10. Unknown field in the body (400, forbidNonWhitelisted)
+POST http://localhost:3000/trees
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Nope",
+  "ownerId": 99
+}
+
+### 11. Members of tree 1 (200)
+GET http://localhost:3000/trees/1/members
+Authorization: Bearer {{token}}
+
+### 12. Invite a member by e-mail (201 / 404 unknown user / 409 already)
+POST http://localhost:3000/trees/1/members
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "email": "sreypov@puong.kh",
+  "role": "CONTRIBUTOR"
+}
+
+### 13. Change a member's role (200) — OWNER only
+PATCH http://localhost:3000/members/3
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "role": "VIEWER"
+}
+
+### 14. Remove a member (204)
+DELETE http://localhost:3000/members/3
+Authorization: Bearer {{token}}
+
+### 15. Persons of tree 1 (200)
+GET http://localhost:3000/trees/1/persons
+Authorization: Bearer {{token}}
+
+### 16. Add a person (201) — CONTRIBUTOR required
+POST http://localhost:3000/trees/1/persons
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Chanthou Sreyneang",
+  "gender": "female",
+  "birthDate": "1972-06-14",
+  "biography": "Youngest daughter of Sovann and Sophea."
+}
+
+### 17. deathDate before birthDate (400)
+POST http://localhost:3000/trees/1/persons
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Impossible Dates",
+  "birthDate": "1990-01-01",
+  "deathDate": "1980-01-01"
+}
+
+### 18. Read one person (200 / 404 unknown id)
+GET http://localhost:3000/persons/1
+Authorization: Bearer {{token}}
+
+### 19. Edit a person (200)
+PATCH http://localhost:3000/persons/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "biography": "Village teacher in Kampong Cham; his diary from 1960 was scanned in 2024."
+}
+
+### 20. Delete a person (204 — relationships and memories go with it)
+DELETE http://localhost:3000/persons/10
+Authorization: Bearer {{token}}
+
+### 21. Relationships of tree 1 (200)
+GET http://localhost:3000/trees/1/relationships
+Authorization: Bearer {{token}}
+
+### 22. Link two persons (201 / 404 person not in this tree / 409 duplicate)
+POST http://localhost:3000/trees/1/relationships
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "personId": 1,
+  "relatedPersonId": 4,
+  "type": "spouse"
+}
+
+### 23. A person related to itself (400)
+POST http://localhost:3000/trees/1/relationships
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "personId": 1,
+  "relatedPersonId": 1,
+  "type": "sibling"
+}
+
+### 24. Delete a relationship (204)
+DELETE http://localhost:3000/relationships/1
+Authorization: Bearer {{token}}
+
+### 25. Memories of a person (200)
+GET http://localhost:3000/persons/2/memories
+Authorization: Bearer {{token}}
+
+### 26. Write a memory (201) — server sets authorId
+POST http://localhost:3000/persons/2/memories
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "content": "Grandma's amok recipe still refuses to be written down."
+}
+
+### 27. Empty content (400)
+POST http://localhost:3000/persons/2/memories
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "content": ""
+}
+
+### 28. Delete a memory (204 — author or tree OWNER)
+DELETE http://localhost:3000/memories/1
+Authorization: Bearer {{token}}
+
+### 29. Someone else's memory, VIEWER tries (403)
+DELETE http://localhost:3000/memories/1
+Authorization: Bearer {{viewerToken}}
+
+### 30. Non-member reads a tree (403)
+GET http://localhost:3000/trees/1
+Authorization: Bearer {{outsiderToken}}
+
+### 31. DELETE the tree (204 — persons, memberships, memories all removed)
+DELETE http://localhost:3000/trees/9
+Authorization: Bearer {{token}}

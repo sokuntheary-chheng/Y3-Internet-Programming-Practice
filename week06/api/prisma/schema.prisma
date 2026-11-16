@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  OWNER
+  CONTRIBUTOR
+  VIEWER
+}
+
+enum Gender {
+  male
+  female
+  other
+}
+
+enum RelationType {
+  parent
+  spouse
+  sibling
+}
+
+// The account. password is hashed (contract: write-only, never returned).
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(100)
+  email     String   @unique @db.VarChar(255)
+  password  String
+  createdAt DateTime @default(now())
+
+  treesOwned  Tree[]       @relation("TreeOwner")
+  memberships Membership[]
+  memories    Memory[]     @relation("MemoryAuthor")
+
+  @@index([email])
+}
+
+// A family tree. Many users share one tree through Membership (the N-N join).
+model Tree {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(100)
+  description String   @default("") @db.VarChar(500)
+  createdAt   DateTime @default(now())
+  ownerId     Int
+
+  owner         User           @relation("TreeOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  persons       Person[]
+  memberships   Membership[]
+  relationships Relationship[]
+
+  @@index([ownerId])
+}
+
+// Membership is the N-N relation between User and Tree, with a role per pair.
+model Membership {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  treeId    Int
+  role      Role
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, treeId])
+  @@index([treeId])
+}
+
+// A person belongs to exactly one tree. Deleting the tree deletes its persons.
+model Person {
+  id        Int       @id @default(autoincrement())
+  treeId    Int
+  name      String    @db.VarChar(100)
+  gender    Gender?
+  birthDate DateTime?
+  deathDate DateTime?
+  biography String    @default("") @db.VarChar(2000)
+  createdAt DateTime  @default(now())
+
+  tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
+
+  // Self N-N: a person can be on either side of many relationships.
+  relationships Relationship[] @relation("PersonSide")
+  relatedTo     Relationship[] @relation("RelatedPersonSide")
+  memories      Memory[]
+
+  @@index([treeId])
+}
+
+// Two persons of the same tree, linked by a type: the self N-N join table.
+model Relationship {
+  id              Int          @id @default(autoincrement())
+  treeId          Int
+  personId        Int
+  relatedPersonId Int
+  type            RelationType
+  createdAt       DateTime     @default(now())
+
+  tree          Tree   @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  person        Person @relation("PersonSide", fields: [personId], references: [id], onDelete: Cascade)
+  relatedPerson Person @relation("RelatedPersonSide", fields: [relatedPersonId], references: [id], onDelete: Cascade)
+
+  @@unique([treeId, personId, relatedPersonId, type])
+  @@index([treeId])
+}
+
+// One memory is written by one author about one person.
+model Memory {
+  id        Int      @id @default(autoincrement())
+  personId  Int
+  authorId  Int
+  content   String   @db.VarChar(2000)
+  createdAt DateTime @default(now())
+
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  author User   @relation("MemoryAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([personId])
+}
