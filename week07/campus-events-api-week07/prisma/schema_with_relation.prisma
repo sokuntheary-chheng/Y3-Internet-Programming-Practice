@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Category {
+  talk
+  workshop
+  social
+  sport
+}
+
+model Event {
+  id          Int       @id @default(autoincrement())
+  title       String    @db.VarChar(100)
+  category    Category
+  startsAt    DateTime
+  location    String    @db.VarChar(100)
+  capacity    Int
+  booked      Int       @default(0)
+  description String    @default("") @db.VarChar(500)
+  createdAt   DateTime  @default(now())
+  bookings    Booking[] @relation(fields: [eventId], references: [id])
+  @@index([startsAt])
+}
+
+model Booking {
+  id            Int      @id @default(autoincrement())
+  name          String   @db.VarChar(100)
+  email         String   @db.VarChar(255)
+  seats         Int      
+  createdAt     DateTime @default(now())
+  eventId       Int
+
+  event Event @relation(fields: [eventId], references: [id])
+}
